@@ -1,4 +1,4 @@
-# Workshop DB XX
+# Workshop DB 04 - Views
 
 ## Configuration
 
@@ -28,3 +28,8 @@ Starting a console:
 ```
 bin/irb
 ```
+
+
+## Demo
+
+[Heroku demo](https://selleo-workshop-db04.herokuapp.com)
