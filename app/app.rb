@@ -1,5 +1,5 @@
 class App < Sinatra::Base
-  TITLE = "WDBXX"
+  TITLE = "WDB04 - Views"
 
   set :public_folder, -> { File.join(root, "..", "public") }
   set :views, -> { File.join(root, "views") }
