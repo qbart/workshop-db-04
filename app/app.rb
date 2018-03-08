@@ -25,4 +25,8 @@ class App < Sinatra::Base
     end
   end
 
+  get '/' do
+    haml :'home/show'
+  end
+
 end
