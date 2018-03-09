@@ -45,6 +45,16 @@ h5 { margin-top: 32px; }
   min-height: 250px;
 }
 
+table caption {
+  caption-side: top;
+  text-align: center;
+  font-style: italic;
+  font-size: 12px;
+  padding-top: 0;
+  padding-bottom: 6px;
+  color: #444;
+}
+
 table.data.fluid {
   width: 100%;
 }

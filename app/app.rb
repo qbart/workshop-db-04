@@ -29,4 +29,18 @@ class App < Sinatra::Base
     haml :'home/show'
   end
 
+  get '/intro' do
+    @mod_published = current_user.articles.published
+    @mod_drafts    = current_user.articles.drafts
+
+    @published = current_user.published_articles
+    @drafts    = current_user.drafts
+
+    haml :'views/intro'
+  end
+
+  def current_user
+    @user ||= User.first
+  end
+
 end

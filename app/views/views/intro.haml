@@ -1,0 +1,126 @@
+%h4 Introduction
+
+%blockquote
+  %strong Definition:<br>
+  Database object defined by a query.<br>
+  The view is not physically materialized. Instead, the query is run every time the view is referenced in a query.<br>
+  Some people refer to views as `virtual tables`.
+
+
+%h5 Pros
+%ul
+  %li Enforcing business rules
+  %li Hiding complexity
+  %li Enhanced security
+  %li Unified interface to data
+
+
+%h5 Cons
+%ul
+  %li Slower performance (if used incorrectly)
+  %li Adds extra management
+
+
+%h5 Syntax
+%pre
+  :preserve
+    CREATE [ OR REPLACE ] [ TEMP | TEMPORARY ] [ RECURSIVE ] VIEW name [ ( column_name [, ...] ) ]
+      [ WITH ( view_option_name [= view_option_value] [, ... ] ) ]
+      AS query
+      [ WITH [ CASCADED | LOCAL ] CHECK OPTION ]
+
+
+%h5 Example schema
+.row
+  - [User, Article].each do |model_class|
+    .col-md-3
+      %pre
+        %code
+          :preserve
+            #{DataHelpers.model_info(model_class)}
+
+%h5 Example data set
+.row
+  .col-md-6
+    = DataHelpers.ar_table(Article, "Published", @mod_published)
+    = DataHelpers.ar_table(Article, "Drafts", @mod_drafts)
+  .col-md-6
+    %pre
+      %code
+        :preserve
+          # model
+          class Article < ActiveRecord::Base
+            scope :published, -> { where.not(published_at: nil) }
+            scope :drafts, -> { where(published_at: nil) }
+          end
+    %pre
+      %code
+        :preserve
+          # model
+          class User < ActiveRecord::Base
+            has_many :articles
+          end
+    %pre
+      %code
+        :preserve
+          # controller
+          @published = @user.articles.published
+          @drafts    = @user.articles.drafts
+
+%h5 How this could be approached with the view?
+.row
+  .col-md-6
+    = DataHelpers.ar_table(PublishedArticle, "Published (view)", @published)
+    = DataHelpers.ar_table(Draft, "Drafts (view)", @drafts)
+  .col-md-6
+    %pre
+      %code
+        :preserve
+          # model
+          class User < ActiveRecord::Base
+            has_many :published_articles
+            has_many :drafts
+          end
+    %pre
+      %code
+        :preserve
+          # view
+          class PublishedArticle < ActiveRecord::Base
+          end
+    %pre
+      %code
+        :preserve
+          # view
+          class Draft < ActiveRecord::Base
+          end
+    %pre
+      %code
+        :preserve
+          # controller
+          @published = @user.published_articles
+          @drafts    = @user.drafts
+    %pre
+      %code
+        :preserve
+          # SQL
+          CREATE VIEW published_articles AS
+            SELECT
+              id,
+              user_id,
+              title,
+              published_at
+            FROM
+              articles
+            WHERE published_at IS NOT NULL
+    %pre
+      %code
+        :preserve
+          # SQL
+          CREATE VIEW drafts AS
+            SELECT
+              id,
+              user_id,
+              title
+            FROM
+              articles
+            WHERE published_at IS NOT NULL
