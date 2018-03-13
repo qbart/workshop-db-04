@@ -39,6 +39,10 @@ class App < Sinatra::Base
     haml :'views/intro'
   end
 
+  get '/updatable' do
+    haml :'views/updatable'
+  end
+
   def current_user
     @user ||= User.first
   end

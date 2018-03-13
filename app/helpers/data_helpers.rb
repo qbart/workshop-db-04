@@ -16,12 +16,12 @@ module DataHelpers
     headers = model_class.columns.map(&:name)
     arr = []
     arr << headers
-    arr << data.map do |record|
+    data.each do |record|
       row = []
       headers.each do |header|
         row << record.public_send(header)
       end
-      row
+      arr << row
     end
     table(arr, header: true, caption: caption)
   end
