@@ -10,3 +10,5 @@ if User.count == 0
   Article.create!(user: gambit, title: 'Kinetic conversion and acceleration theory', published_at: nil)
   Article.create!(user: rogue, title: 'Dying hair', published_at: Date.new(2018, 3, 1))
 end
+
+MatUserArticleStat.refresh
