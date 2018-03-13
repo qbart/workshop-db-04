@@ -1,0 +1,173 @@
+%h4 Materialized view
+
+%h5 Syntax
+%pre
+  :preserve
+    CREATE MATERIALIZED VIEW [ IF NOT EXISTS ] table_name
+      [ (column_name [, ...] ) ]
+      [ WITH ( storage_parameter [= value] [, ... ] ) ]
+      [ TABLESPACE tablespace_name ]
+      AS query
+      [ WITH [ NO ] DATA ]
+
+%blockquote
+  :preserve
+    <strong>WITH [ NO ] DATA</strong><br>
+      This clause specifies whether or not the materialized view should be populated at creation time. If not, the materialized view will be flagged as unscannable and cannot be queried until <strong>REFRESH MATERIALIZED VIEW</strong> is used
+
+%h5 Consider following views
+.row
+  .col-md-6
+    %h6 Standard view
+    %pre
+      %code
+        :preserve
+          CREATE VIEW user_article_stats AS
+          SELECT
+            u.id,
+            u.name,
+            COUNT(a.*) AS article_count,
+            COUNT(a.*) FILTER (WHERE a.published_at IS NULL) AS draft_count,
+            COUNT(a.*) FILTER (WHERE a.published_at IS NOT NULL) AS published_count
+          FROM users u
+          LEFT JOIN articles a ON a.user_id = u.id
+          GROUP BY u.id
+  .col-md-6
+    %h6 Materialized view
+    %pre
+      %code
+        :preserve
+          CREATE MATERIALIZED VIEW mat_user_article_stats AS
+          SELECT
+            u.id,
+            u.name,
+            COUNT(a.*) AS article_count,
+            COUNT(a.*) FILTER (WHERE a.published_at IS NULL) AS draft_count,
+            COUNT(a.*) FILTER (WHERE a.published_at IS NOT NULL) AS published_count
+          FROM users u
+          LEFT JOIN articles a ON a.user_id = u.id
+          GROUP BY u.id
+
+.row
+  .col-md-6
+    %pre
+      %code
+        :preserve
+          SELECT * FROM user_article_stats
+    = DataHelpers.ar_table(UserArticleStat, "View", @stats)
+  .col-md-6
+    %pre
+      %code
+        :preserve
+          SELECT * FROM mat_user_article_stats
+    = DataHelpers.ar_table(MatUserArticleStat, "Materialized view", @mat_stats)
+
+%h5 Exercise 2.1.
+%p Add a new user with article.
+.row
+  .col-md-12
+    %pre
+      %code
+        :preserve
+          INSERT INTO users(name) VALUES('Storm')
+          INSERT INTO articles(user_id, title, published_at) VALUES (__PUT_STORM_ID_HERE__, 'Lightning', CURRENT_DATE)
+
+    %p and run queries again
+
+.row
+  .col-md-6
+    %pre
+      %code
+        :preserve
+          SELECT * FROM user_article_stats
+  .col-md-6
+    %pre
+      %code
+        :preserve
+          SELECT * FROM mat_user_article_stats
+
+%p As you can see materialized view still contains old data. To see what's happening under the hood compare query plans for both views using EXPLAIN.
+
+%h5 Refreshing materialized views
+%pre
+  :preserve
+    REFRESH MATERIALIZED VIEW [ CONCURRENTLY ] name
+      [ WITH [ NO ] DATA ]
+
+%blockquote
+  :preserve
+    REFRESH MATERIALIZED VIEW completely replaces the contents of a materialized view. The old contents are discarded.
+
+%blockquote
+  :preserve
+    <strong>CONCURRENTLY</strong>
+    <br><br>
+    Refresh the materialized view without locking out concurrent selects on the materialized view. Without this option a refresh which affects a lot of rows will tend to use fewer resources and complete more quickly, but could block other connections which are trying to read from the materialized view. This option may be faster in cases where a small number of rows are affected.<br><br>
+    This option is only allowed if there is at least one UNIQUE index on the materialized view which uses only column names and includes all rows; that is, it must not index on any expressions nor include a WHERE clause.<br><br>
+    This option may not be used when the materialized view is not already populated.<br><br>
+    Even with this option only one REFRESH at a time may run against any one materialized view.
+
+%h5 Refreshing materialized views in the app
+.row
+  .col-md-6.code-group
+    %p Custom solution
+    %pre
+      %code
+        :preserve
+          class MatUserArticleStat < ActiveRecord::Base
+            def self.refresh(concurrently: false)
+              if concurrently
+                connection.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY \#{connection.quote_table_name(table_name)}")
+              else
+                connection.execute("REFRESH MATERIALIZED VIEW \#{connection.quote_table_name(table_name)}")
+              end
+            end
+          end
+    %pre.green
+      %code
+        :preserve
+          MatUserArticleStat.refresh(concurrently: true)
+  .col-md-6
+    %p Using scenic
+    %pre.green
+      %code
+        :preserve
+          Scenic.database.refresh_materialized_view(table_name, concurrently: false, cascade: false)
+
+%h5 Exercise 2.2.
+.row
+  .col-md-6
+    %p Create a new view (i.e. user_stats) that outputs the same statistics about articles as above but the following criteria must be met:
+    %ul
+      %li User list is always up to date (if you add/remove one, you always need to see valid users when referencing the view)
+      %li To improve view performance, all values: article_count / draft_count / published_count are allowed to be out of date and refreshed from time to time but they must be present in the view
+    %p At the end compare query plan to other plans.
+
+  .col-md-6.expandable
+    %a.btn.btn-secondary{href: '#', class: 'expand-link'} View answer
+    .content
+      %p Create materialized view with stats only
+      %pre.green
+        %code
+          :preserve
+            CREATE MATERIALIZED VIEW article_stats_by_users AS
+            SELECT
+              a.user_id,
+              COUNT(a.*) AS article_count,
+              COUNT(a.*) FILTER (WHERE a.published_at IS NULL) AS draft_count,
+              COUNT(a.*) FILTER (WHERE a.published_at IS NOT NULL) AS published_count
+            FROM articles a
+            GROUP BY a.user_id
+      %p Create user stats by joining materialized view
+      %pre.green
+        %code
+          :preserve
+            CREATE VIEW user_stats AS
+              SELECT
+                u.id,
+                u.name,
+                COALESCE(stats.article_count, 0) AS article_count,
+                COALESCE(stats.draft_count, 0) AS draft_count,
+                COALESCE(stats.published_count, 0) AS published_count
+              FROM users u
+              LEFT JOIN article_stats_by_users stats ON stats.user_id = u.id

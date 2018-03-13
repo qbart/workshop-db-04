@@ -43,6 +43,13 @@ class App < Sinatra::Base
     haml :'views/updatable'
   end
 
+  get '/mat' do
+    @mat_stats = MatUserArticleStat.all
+    @stats     = UserArticleStat.all
+
+    haml :'views/mat'
+  end
+
   def current_user
     @user ||= User.first
   end
